@@ -29,6 +29,11 @@ int main(int argc, char **argv){
 
 }
 
+/*
+*@desc 根据描述符，解析出url,method等参数， 区分动态请求和静态请求。 分别做处理。
+*@param fd 已连接描述符
+*@琦 2023-01-07
+*/
 void doit(int fd)
 {
   int is_static
@@ -50,8 +55,8 @@ void doit(int fd)
 
   
   read_requesthdrs(&rio);
-
-
+  
+  
   is_static = parse_uri(uri, filename, cgiargs);
   if(stat(filename, &sbuf) < 0) {
       clienterror(fd, filename, "404", "Not found", "Tiny couldn't find this file");
@@ -77,6 +82,15 @@ void doit(int fd)
 
 }
 
+/**
+ * @details 组装错误信息报文
+ * @param fd 已连接描述符
+ * @param cause 文件名
+ * @param errnum http响应码
+ * @param shortmsg 错误码对应的信息（短）
+ * @param longmsg  错误码对应的信息(长)
+ * 
+*/
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg)
 {
     char buf[MAXLINE], body[MAXBUF];
@@ -89,14 +103,43 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
 
 }
 
-int parse_uri(char *uri, char *filemae, char *cigargs)
+int parse_uri(char *uri, char *filename, char *cigargs)
 {
     char *ptr;
 
     if(!strcpy(uri, "cgi-bin")){
         strcpy(cigargs, "");
-        
+        strcpy(filename, ".");
+        strcat(filename, uri);
+        if(uri[strlen(uri-1)] == '/')
+          strcat(filename, "home.html");
+        return 1;
+    }else{
+       ptr = index(uri, '?');
+       if(ptr){
+        strcpy(cigargs, ptr+1);
+        *ptr = '\0';
+       }else
+        strcpy(cigargs, "");
 
+      strcpy(filename, ".");
+      strcat(filename, uri);
+      return 0;
     }
+
+}
+
+void read_requesthdrs(rio_t *rp){
+
+    char buf[MAXLINE];
+    
+    Rio_readlineb(rp, buf, MAXLINE);
+    while (strcmp(buf, "\r\n"))
+    {
+      Rio_readlineb(rp, buf, MAXLINE);
+      printf("%s", buf);
+    }
+    
+    return;
 
 }
