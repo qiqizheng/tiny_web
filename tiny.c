@@ -103,11 +103,20 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
 
 }
 
+
+/**
+ * @details 判断请求内容是动态还是静态
+ * @param uri 请求url
+ * @param filename 请求文件名
+ * @author 琦 2023-01-07
+*/
+
 int parse_uri(char *uri, char *filename, char *cigargs)
 {
     char *ptr;
 
-    if(!strcpy(uri, "cgi-bin")){
+    //uri中包含cgi-bin的字符判断为请求动态内容，否则为静态
+    if(!strstr(uri, "cgi-bin")){
         strcpy(cigargs, "");
         strcpy(filename, ".");
         strcat(filename, uri);
