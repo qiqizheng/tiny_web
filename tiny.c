@@ -43,7 +43,7 @@ void doit(int fd)
   rio_t rio;
 
    //将描述符与缓冲区关联起来
-  Rio_readinitb(&rio, fd);
+  Rio_readinitb(&rio, fd);  
   Rio_readinitb(&rio, buf, MAXLINE);
   sscanf(buf, "%s %s %s", method, uri, version);
 
@@ -53,9 +53,8 @@ void doit(int fd)
      return;   
   }  
 
-  
+  //将缓冲区rp中的字符写入到buf中
   read_requesthdrs(&rio);
-  
   
   is_static = parse_uri(uri, filename, cgiargs);
   if(stat(filename, &sbuf) < 0) {
@@ -138,11 +137,18 @@ int parse_uri(char *uri, char *filename, char *cigargs)
 
 }
 
+/**
+ * @details 将缓冲区rp中的字符写入到buf中
+ * @param rp rp是已连接描述符写入的，接受到的数据
+ * @author 琦 2023-01-11
+*/
 void read_requesthdrs(rio_t *rp){
 
     char buf[MAXLINE];
     
     Rio_readlineb(rp, buf, MAXLINE);
+
+    //遇到空文本行则打印出buf
     while (strcmp(buf, "\r\n"))
     {
       Rio_readlineb(rp, buf, MAXLINE);
@@ -150,5 +156,68 @@ void read_requesthdrs(rio_t *rp){
     }
     
     return;
+
+}
+
+/**
+ * @details 处理静态请求
+ * 
+*/
+void serve_static(int fd, char *filename, int filesize)
+{
+   int srcfd;
+   char *srcp, filetype[MAXLINE], buf[MAXBUF];
+   
+   //根据文件名确定文件类型
+   get_filetype(filename, filetype);
+
+   //响应内容
+   sprintf(buf, "HTTP/1.0 200 OK \r\n");
+   sprintf(buf, "%s Server: Tiny web Server \r\n", buf);
+   sprintf(buf, "%s Content-length: %d \r\n", buf, filesize);
+   sprintf(buf, "%s Content-type: %s \r\n\r\n", buf, filetype);
+   Rio_writen(fd, buf, strlen(buf));
+  
+   srcfd = Open(filename , O_RDONLY, 0);
+   srcfd = Mmap(0 , filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+   close(srcfd);
+   rio_writen(fd, srcp, filesize);
+   Munmap(srcp, filesize);
+   
+}
+
+void get_filetype(char *filename, char *filetype)
+{
+   if (strstr(filename, ".html"))
+   {
+    strcpy(filetype, "text/html");
+   }
+   else if (strstr(filename , ".gif"))
+   {
+    strcpy(filetype, "image/gif");
+   }
+   else if(strstr(filename, ".jpg"))
+    strcpy(filetype, "iamge/jpeg");
+   else  
+     strcpy(filetype, "text/plain");
+
+}
+
+void serve_dynamic(int fd, char *filename, char *cgiargs)
+{
+  char buf[MAXLINE], *emptylist[] = {  NULL };
+  
+  sprintf(buf, "HTTP/1.0 200 OK\r\n");
+  Rio_writen(fd, buf, strlen(buf));
+  sprintf(buf, "Server: Tiny web server \r\n");
+  Rio_writen(fd, buf, strlen(buf));
+
+  if(fork() == 0){
+      setenv("QUERY_STRING", cgiargs, 1);
+      dup2(fd, STDOUT_FILENO);
+      execve(filename, emptylist, environ);
+  }
+
+  wait(NULL);
 
 }
