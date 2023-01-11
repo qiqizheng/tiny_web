@@ -179,13 +179,20 @@ void serve_static(int fd, char *filename, int filesize)
    Rio_writen(fd, buf, strlen(buf));
   
    srcfd = Open(filename , O_RDONLY, 0);
-   srcfd = Mmap(0 , filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+   srcp = mmap(0 , filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
    close(srcfd);
+
+   //将srcp内容写入到fd描述符
    rio_writen(fd, srcp, filesize);
-   Munmap(srcp, filesize);
+   //取消映射到内存
+   munmap(srcp, filesize);
    
 }
 
+/**
+ * @details 根据文件名确定类型
+ * 
+*/
 void get_filetype(char *filename, char *filetype)
 {
    if (strstr(filename, ".html"))
@@ -203,6 +210,11 @@ void get_filetype(char *filename, char *filetype)
 
 }
 
+/**
+ * @details 处理动态请求
+ * @param fd 已连接描述符
+ * 
+*/
 void serve_dynamic(int fd, char *filename, char *cgiargs)
 {
   char buf[MAXLINE], *emptylist[] = {  NULL };
@@ -211,13 +223,14 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
   Rio_writen(fd, buf, strlen(buf));
   sprintf(buf, "Server: Tiny web server \r\n");
   Rio_writen(fd, buf, strlen(buf));
-
+  
+  //
   if(fork() == 0){
       setenv("QUERY_STRING", cgiargs, 1);
       dup2(fd, STDOUT_FILENO);
       execve(filename, emptylist, environ);
   }
-
+  
   wait(NULL);
 
 }
