@@ -1,11 +1,19 @@
 #include "csapp.h"
 
+void doit(int fd);
+void read_requesthdrs(rio_t *rp);
+int parse_uri(char *uri, char *filename, char *cgiargs);
+void serve_static(int fd, char *filename, int filesize);
+void get_filetype(char *filename, char *filetype);
+void serve_dynamic(int fd, char *filename, char *cgiargs);
+void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
+
 int main(int argc, char **argv){
    int listenfd, connfd, port, clientlen;
    struct sockaddr_in clientaddr;
 
    if(argc != 2){
-     fpringf(stderr, "usage: %s <port>\n", argv[0]);
+     fprintf(stderr, "usage: %s <port>\n", argv[0]);
      exit(1);
    }
 
@@ -36,15 +44,15 @@ int main(int argc, char **argv){
 */
 void doit(int fd)
 {
-  int is_static
+  int is_static;
   struct stat sbuf;
   char buf[MAXLINE], method[MAXLINE],uri[MAXLINE],version[MAXLINE];
   char filename[MAXLINE],cgiargs[MAXLINE];
   rio_t rio;
 
    //将描述符与缓冲区关联起来
-  rio_readinitb(&rio, fd);  
-  rio_readinitb(&rio, buf, MAXLINE);
+  Rio_readinitb(&rio, fd);  
+  Rio_readlineb(&rio, buf, MAXLINE);
   sscanf(buf, "%s %s %s", method, uri, version);
 
   //只支持get请求， 非get请求，报501
@@ -63,7 +71,7 @@ void doit(int fd)
   }
 
   if(is_static){
-    if (!S_ISREG(sbuf.st_mode) || !(S_IXUSR & sbuf.st_mode)){
+    if (!S_ISREG(sbuf.st_mode) || !(S_IRUSR & sbuf.st_mode)){
         clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't read the file");
         return;
     }
@@ -110,13 +118,13 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
  * @author 琦 2023-01-07
 */
 
-int parse_uri(char *uri, char *filename, char *cigargs)
+int parse_uri(char *uri, char *filename, char *cgiargs)
 {
     char *ptr;
 
     //uri中包含cgi-bin的字符判断为请求动态内容，否则为静态
     if(!strstr(uri, "cgi-bin")){
-        strcpy(cigargs, "");
+        strcpy(cgiargs, "");
         strcpy(filename, ".");
         strcat(filename, uri);
         if(uri[strlen(uri-1)] == '/')
@@ -125,10 +133,10 @@ int parse_uri(char *uri, char *filename, char *cigargs)
     }else{
        ptr = index(uri, '?');
        if(ptr){
-        strcpy(cigargs, ptr+1);
+        strcpy(cgiargs, ptr+1);
         *ptr = '\0';
        }else
-        strcpy(cigargs, "");
+        strcpy(cgiargs, "");
 
       strcpy(filename, ".");
       strcat(filename, uri);
@@ -204,7 +212,7 @@ void get_filetype(char *filename, char *filetype)
     strcpy(filetype, "image/gif");
    }
    else if(strstr(filename, ".jpg"))
-    strcpy(filetype, "iamge/jpeg");
+    strcpy(filetype, "image/jpeg");
    else  
      strcpy(filetype, "text/plain");
 
