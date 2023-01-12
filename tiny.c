@@ -43,8 +43,8 @@ void doit(int fd)
   rio_t rio;
 
    //将描述符与缓冲区关联起来
-  Rio_readinitb(&rio, fd);  
-  Rio_readinitb(&rio, buf, MAXLINE);
+  rio_readinitb(&rio, fd);  
+  rio_readinitb(&rio, buf, MAXLINE);
   sscanf(buf, "%s %s %s", method, uri, version);
 
   //只支持get请求， 非get请求，报501
