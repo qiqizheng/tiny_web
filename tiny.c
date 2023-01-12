@@ -224,13 +224,14 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
   sprintf(buf, "Server: Tiny web server \r\n");
   Rio_writen(fd, buf, strlen(buf));
   
-  //
+  //在子进程中设置环境变量， 重定向输出到标准输出，执行可执行文件
   if(fork() == 0){
       setenv("QUERY_STRING", cgiargs, 1);
       dup2(fd, STDOUT_FILENO);
       execve(filename, emptylist, environ);
   }
-  
+
+  //保证子进程优先执行
   wait(NULL);
 
 }
